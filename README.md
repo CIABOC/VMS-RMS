@@ -31,7 +31,7 @@ The system implements the 15 screens of the UI prototype (SRS Draft 1.2) as a wo
 | End-to-end API smoke test (`scripts/smoke-test.mjs`, 111 checks) | Passing on a clean database |
 | Frontend production build | Passing |
 | Single Sign-On | **Not yet connected.** The sign-in page (screen 01) stays as the SSO landing page so SSO can be merged there (see §6) |
-| Official CIABOC logo | Placeholder crest. Replace before go-live |
+| Official CIABOC logo | Styled to the CIABOC Account template. Crest image cut from a screenshot; replace `frontend/public/brand/crest.png` with the original file before go-live |
 | Manual UI test in a browser by the business team | Pending (UAT) |
 
 ---
@@ -300,7 +300,7 @@ These live in the database and are edited on screen 14. Every change is audited.
 | Counts ("15 / 6 / 2") were typed by hand | Derived from `config/screens.js`; the home page shows screens for your role, total screens and roles supported |
 | "6 roles" weren't defined anywhere | Defined in `Role.java` and `roles.js`, and documented above |
 | Sample data | Removed. All data comes from PostgreSQL; nothing is seeded except configuration keys |
-| Placeholder logo | Still a placeholder, marked in `Crest.jsx`. Replace with the official mark |
+| Placeholder logo | Crest now comes from `frontend/public/brand/crest.png` (temporary, cut from the template screenshot); the CIABOC red-dot wordmark is drawn in `Wordmark.jsx` |
 
 The prototype's UI/wireframe toggle (the **W** key) was a design-review aid and isn't part of the application.
 
@@ -310,7 +310,7 @@ The prototype's UI/wireframe toggle (the **W** key) was a design-review aid and 
 
 1. **SSO integration** into screen 01 (§6). Owner: identity / infrastructure team.
 2. **UAT** with reception, host, gate and management users. Confirm the visitor categories, acknowledgement wording and limits.
-3. **Official branding:** replace `frontend/src/components/Crest.jsx`.
+3. **Official branding:** replace `frontend/public/brand/crest.png` with the official high-resolution transparent PNG (same file name).
 4. **Notifications:** host alerts by SMS or e-mail in addition to the inbox, if the SRS requires them.
 5. **Retention policy:** decide how long identity scans and signatures are kept, and add a scheduled purge job.
 6. **CI pipeline:** run `mvn test`, the frontend build and the smoke test against a throwaway database on every change.

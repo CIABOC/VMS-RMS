@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import Crest from '../components/Crest.jsx';
+import Wordmark from '../components/Wordmark.jsx';
 
 /**
  * Public token display for the waiting-room screen (part of screen 06).
@@ -37,8 +38,11 @@ export default function PublicQueueDisplay() {
     <div className="display">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-          <Crest size={52} />
-          <h1>Visitor queue</h1>
+          <Crest size={64} />
+          <div>
+            <Wordmark size={30} />
+            <h1>Visitor queue</h1>
+          </div>
         </div>
         <div style={{ fontSize: 28, fontFamily: 'var(--display)' }}>
           {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}

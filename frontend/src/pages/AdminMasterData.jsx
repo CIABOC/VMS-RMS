@@ -144,6 +144,7 @@ function AckTexts() {
         <button className="btn primary" disabled={busy || !form?.textEn?.trim() || !form?.textSi?.trim() || !form?.textTa?.trim()} onClick={create}>Save as draft</button>
       </>}>
         {form && <div className="stack">
+          <ErrorBanner error={saveError} />
           <Field label="English"><textarea lang="en" value={form.textEn} onChange={(e) => setForm({ ...form, textEn: e.target.value })} /></Field>
           <Field label="Sinhala"><textarea lang="si" value={form.textSi} onChange={(e) => setForm({ ...form, textSi: e.target.value })} /></Field>
           <Field label="Tamil"><textarea lang="ta" value={form.textTa} onChange={(e) => setForm({ ...form, textTa: e.target.value })} /></Field>

@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { menuFor } from '../config/screens.js';
 import { ROLES } from '../config/roles.js';
 import Crest from './Crest.jsx';
+import Wordmark from './Wordmark.jsx';
 
 export default function AppLayout() {
   const { user, roles, logout } = useAuth();
@@ -24,8 +25,8 @@ export default function AppLayout() {
     <div className="shell">
       <aside className={`side${open ? ' open' : ''}`} aria-label="Main navigation">
         <Link to="/" className="brand">
-          <Crest size={36} />
-          <span><b>CIABOC</b><small>Reception &amp; Vehicle Management</small></span>
+          <Crest size={54} />
+          <span><Wordmark size={20} /><small>Reception &amp; Vehicle Management</small></span>
         </Link>
         <nav className="nav">
           <NavLink to="/" end><span className="no">⌂</span>Home</NavLink>
