@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAction, useApi } from '../hooks/useApi.js';
 import { ErrorBanner, Field, Loading, PageHeader, StatusBadge } from '../components/ui.jsx';
+import IdScanner from '../components/IdScanner.jsx';
 import { ID_TYPES, fmtDateTime } from '../utils/format.js';
 
 /** Screen 04 - identity verification with the stored-scan reuse rule. */
@@ -15,6 +16,8 @@ export default function IdentityVerification() {
   const [note, setNote] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [readNumber, setReadNumber] = useState(null); // document number read from the barcode, if any
   const { busy, error, run } = useAction();
 
   useEffect(() => () => preview && URL.revokeObjectURL(preview.url), [preview]);
@@ -41,6 +44,16 @@ export default function IdentityVerification() {
     await reload();
   });
 
+  const onCameraScan = (r) => run(async () => {
+    setScannerOpen(false);
+    setReadNumber(r.raw && r.idNumber ? r.idNumber : null);
+    const form = new FormData();
+    form.append('file', r.photo);
+    await api.upload(`/visitors/${v.id}/id-scan`, form);
+    await reload();
+  });
+  const numberMatches = readNumber && readNumber.replace(/\s+/g, '') === String(v.idNumber).replace(/\s+/g, '').toUpperCase();
+
   const confirm = () => run(async () => {
     await api.post(`/visits/${id}/verify`, { method, note });
     navigate(`/visits/${id}/sign`);
@@ -52,6 +65,8 @@ export default function IdentityVerification() {
         Check the visitor's document against the stored scan, take a new scan, or record an exception.
       </PageHeader>
       <ErrorBanner error={error} />
+      <IdScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={onCameraScan}
+        title="New identity scan" photoRequired confirmLabel="Save scan" />
       <div className="grid two">
         <section className="card">
           <h2>Visitor <StatusBadge status={visit.summary.status} /></h2>
@@ -98,7 +113,16 @@ export default function IdentityVerification() {
                     <input type="file" accept="image/jpeg,image/png,application/pdf" onChange={(e) => setFile(e.target.files[0] || null)} />
                   </Field>
                   <button className="btn" onClick={upload} disabled={!file || busy}>Upload</button>
+                  <span className="muted small">or</span>
+                  <button className="btn primary" onClick={() => setScannerOpen(true)} disabled={busy}>Use camera</button>
                   {st.scannedToday && <span className="badge good">Scanned today</span>}
+                </div>
+              )}
+              {method === 'NEW_SCAN' && readNumber && (
+                <div className={`alert ${numberMatches ? 'good' : 'serious'}`} role="status" style={{ marginLeft: 26 }}>
+                  {numberMatches
+                    ? <>The barcode number <b>{readNumber}</b> matches the visitor's profile.</>
+                    : <>The barcode number <b>{readNumber}</b> does not match the profile ({v.idNumber}). Check the document before continuing.</>}
                 </div>
               )}
               <label className="check">

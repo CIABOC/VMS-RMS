@@ -276,6 +276,15 @@ dialog::before { content: ""; display: block; height: 4px; background: var(--gol
 dialog::backdrop { background: rgba(10,21,48,.55); }
 dialog .dlg-body { padding: 22px; }
 dialog .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 22px; border-top: 1px solid var(--line); background: var(--panel-2); }
+dialog.wide { max-width: min(820px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; }
+
+/* ---------- camera ID scanner */
+.scanner-view { position: relative; background: var(--navy-950); border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; }
+.scanner-view video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.scanner-frame { position: absolute; inset: 14% 10%; border: 3px dashed rgba(240, 221, 164, .85); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(10, 21, 48, .35); transition: border-color .2s; pointer-events: none; }
+.scanner-frame.found { border-style: solid; border-color: #3ccf7a; }
+.scanner-status { position: absolute; left: 12px; bottom: 10px; padding: 4px 10px; border-radius: 999px; background: rgba(10, 21, 48, .75); color: #fff; font-size: 12.5px; font-weight: 600; }
+.scanner-photo { max-width: 100%; max-height: 220px; border: 1px solid var(--line); border-radius: 8px; display: block; }
 
 /* ---------- two-column work layouts that stack on small screens */
 .split { display: grid; gap: 16px; align-items: start; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }

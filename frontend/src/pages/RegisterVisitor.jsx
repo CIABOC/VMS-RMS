@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, qs } from '../api/client.js';
 import { useAction, useApi } from '../hooks/useApi.js';
 import { Empty, ErrorBanner, Field, PageHeader } from '../components/ui.jsx';
+import IdScanner from '../components/IdScanner.jsx';
 import { ID_TYPES, fmtDate, fmtTime, isoDate } from '../utils/format.js';
 
 const EMPTY_VISITOR = { fullName: '', idType: 'NIC', idNumber: '', mobile: '', email: '', organization: '', address: '' };
@@ -24,10 +25,35 @@ export default function RegisterVisitor() {
   );
 }
 
+/** Stores a photo taken by the camera scanner as the visitor's identity scan. Returns the updated visitor. */
+async function saveScanPhoto(visitor, photo) {
+  if (!photo) return visitor;
+  const form = new FormData();
+  form.append('file', photo);
+  return api.upload(`/visitors/${visitor.id}/id-scan`, form);
+}
+
 function FindOrCreate({ onSelected }) {
   const [q, setQ] = useState('');
   const [term, setTerm] = useState('');
   const [creating, setCreating] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scan, setScan] = useState(null);
+  const { busy: scanBusy, error: scanError, run } = useAction();
+
+  // After a camera scan: open the existing profile if the document number is known, else start a new one.
+  const onScanned = (result) => run(async () => {
+    setScannerOpen(false);
+    const matches = result.idNumber ? await api.get(`/visitors${qs({ q: result.idNumber })}`) : [];
+    const same = matches.filter((v) => v.idNumber.toUpperCase() === result.idNumber);
+    const existing = same.find((v) => v.idType === result.idType) || same[0];
+    if (existing) {
+      onSelected(await saveScanPhoto(existing, result.photo));
+    } else {
+      setScan(result);
+      setCreating(true);
+    }
+  });
   const { data: results, loading } = useApi(term.length >= 2 ? `/visitors${qs({ q: term })}` : null);
 
   useEffect(() => {
@@ -35,7 +61,9 @@ function FindOrCreate({ onSelected }) {
     return () => clearTimeout(t);
   }, [q]);
 
-  if (creating) return <NewVisitor initialName={q} onCancel={() => setCreating(false)} onSelected={onSelected} />;
+  if (creating) {
+    return <NewVisitor initialName={q} scan={scan} onCancel={() => { setCreating(false); setScan(null); }} onSelected={onSelected} />;
+  }
 
   return (
     <section className="card" aria-labelledby="find-h">
@@ -44,8 +72,13 @@ function FindOrCreate({ onSelected }) {
         <Field label="Name, identity number or mobile">
           <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="At least 2 characters" />
         </Field>
+        <button className="btn primary" onClick={() => setScannerOpen(true)} disabled={scanBusy}>
+          {scanBusy ? 'Looking up…' : 'Scan ID with camera'}
+        </button>
         <button className="btn" onClick={() => setCreating(true)}>New visitor</button>
       </div>
+      <div style={{ marginTop: 10 }}><ErrorBanner error={scanError} /></div>
+      <IdScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={onScanned} confirmLabel="Find or register visitor" />
       <div style={{ marginTop: 14 }}>
         {term.length < 2 ? null : loading ? <Empty>Searching…</Empty> : !results?.length ? (
           <Empty>No matching visitor. <button className="btn small" onClick={() => setCreating(true)}>Create a new profile</button></Empty>
@@ -72,8 +105,14 @@ function FindOrCreate({ onSelected }) {
   );
 }
 
-function NewVisitor({ initialName, onCancel, onSelected }) {
-  const [f, setF] = useState({ ...EMPTY_VISITOR, fullName: /\d/.test(initialName) ? '' : initialName });
+function NewVisitor({ initialName, scan, onCancel, onSelected }) {
+  const [f, setF] = useState(() => ({
+    ...EMPTY_VISITOR,
+    fullName: scan?.fullName || (/\d/.test(initialName) ? '' : initialName),
+    ...(scan?.idNumber ? { idType: scan.idType || 'NIC', idNumber: scan.idNumber } : {}),
+  }));
+  const [photo, setPhoto] = useState(scan?.photo || null);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [dupes, setDupes] = useState([]);
   const { busy, error, run } = useAction();
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -87,13 +126,34 @@ function NewVisitor({ initialName, onCancel, onSelected }) {
 
   const save = (e) => {
     e.preventDefault();
-    run(async () => onSelected(await api.post('/visitors', f)));
+    run(async () => onSelected(await saveScanPhoto(await api.post('/visitors', f), photo)));
+  };
+
+  const onScanned = (r) => {
+    setScannerOpen(false);
+    setF((cur) => ({
+      ...cur,
+      ...(r.idNumber ? { idType: r.idType || cur.idType, idNumber: r.idNumber } : {}),
+      ...(r.fullName ? { fullName: r.fullName } : {}),
+    }));
+    if (r.photo) setPhoto(r.photo);
   };
   const fe = error?.fieldErrors || {};
 
   return (
+    <>
+    <IdScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={onScanned} confirmLabel="Fill the form" />
     <form className="card" onSubmit={save} aria-labelledby="new-h">
-      <h2 id="new-h">1. New visitor profile</h2>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 id="new-h">1. New visitor profile</h2>
+        <button type="button" className="btn small" onClick={() => setScannerOpen(true)}>Scan ID with camera</button>
+      </div>
+      {scan && (
+        <div className="alert info" style={{ marginTop: 8 }}>
+          No existing profile uses {scan.idNumber ? <b>{scan.idNumber}</b> : 'this document'}. Details read from the ID are filled in below - check them against the card.
+        </div>
+      )}
+      {photo && <div className="alert good" style={{ marginTop: 8 }}>A camera photo of the ID will be saved as the identity scan.</div>}
       <ErrorBanner error={error} />
       <div className="form-grid" style={{ marginTop: 8 }}>
         <Field label="Full name" error={fe.fullName}><input required value={f.fullName} onChange={set('fullName')} onBlur={checkDuplicates} /></Field>
@@ -116,7 +176,7 @@ function NewVisitor({ initialName, onCancel, onSelected }) {
             {dupes.map((d) => (
               <li key={d.id} style={{ marginTop: 4 }}>
                 {d.fullName} · {ID_TYPES[d.idType]} {d.idNumber} · {d.mobile || 'no mobile'}{' '}
-                <button type="button" className="btn small" onClick={() => onSelected(d)}>Use this profile</button>
+                <button type="button" className="btn small" onClick={() => run(async () => onSelected(await saveScanPhoto(d, photo)))}>Use this profile</button>
               </li>
             ))}
           </ul>
@@ -128,6 +188,7 @@ function NewVisitor({ initialName, onCancel, onSelected }) {
         <button className="btn primary" disabled={busy}>{busy ? 'Saving…' : 'Save and continue'}</button>
       </div>
     </form>
+    </>
   );
 }
 

@@ -137,6 +137,23 @@ Permissions are enforced in two places: the frontend hides screens a user can't 
 | `IN_PREMISES` | Inside with a badge |
 | `COMPLETED` / `CANCELLED` | Closed |
 
+### Camera ID scanning (screens 03 and 04)
+
+The receptionist can scan a visitor's identity card with the PC's camera instead of typing:
+
+- **Screen 03 - "Scan ID with camera"** reads the barcode on the back of the card (PDF417, QR, Code 128/39,
+  Data Matrix, Aztec). A Sri Lankan NIC number found in it opens the matching visitor profile, or pre-fills
+  a new profile. The date of birth and gender encoded in the NIC number are shown for checking. Other decoded
+  values are shown as buttons that copy into the name or number field. A photo of the card can be captured
+  and is stored as the identity scan.
+- **Screen 04 - "Use camera"** captures the new identity scan; if a barcode is read, its number is compared
+  with the profile.
+
+Nothing is saved without the receptionist confirming it. Decoding runs entirely in the browser (the native
+`BarcodeDetector` where available, otherwise the bundled `@zxing` decoder) - no image leaves the site except the
+confirmed scan upload. **Browsers only allow the camera over HTTPS or on `localhost`**, so reception PCs must open
+the system through HTTPS.
+
 ### Business rules
 
 - **Identity scan reuse:** a stored scan can be reused only within `ID_SCAN_REUSE_DAYS`. Otherwise reception takes a new scan or records an exception, which needs a written reason.

@@ -60,7 +60,7 @@ export function Field({ label, hint, error, children }) {
 }
 
 /** Native <dialog> modal. */
-export function Dialog({ open, title, onClose, children, footer }) {
+export function Dialog({ open, title, onClose, children, footer, className }) {
   const ref = useRef(null);
   const titleId = useId();
   useEffect(() => {
@@ -70,7 +70,7 @@ export function Dialog({ open, title, onClose, children, footer }) {
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby={titleId}>
+    <dialog ref={ref} onClose={onClose} aria-labelledby={titleId} className={className}>
       <div className="dlg-body">
         <h2 id={titleId}style={{ fontSize: 18, marginBottom: 12 }}>{title}</h2>
         {children}
