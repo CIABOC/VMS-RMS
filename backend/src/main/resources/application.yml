@@ -50,6 +50,9 @@ app:
   bootstrap-admin-email: ${APP_BOOTSTRAP_ADMIN_EMAIL:}
   bootstrap-admin-name: ${APP_BOOTSTRAP_ADMIN_NAME:System Administrator}
   time-zone: ${APP_TIME_ZONE:Asia/Colombo}
+  # Secret for signing visitor NFC cards (at least 32 random characters). Keep it stable:
+  # changing it makes every card already handed out fail the check. Required when auth-mode=sso.
+  card-secret: ${APP_CARD_SECRET:}
 
 management:
   endpoints:
