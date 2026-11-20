@@ -3,6 +3,7 @@ package lk.gov.ciaboc.rvm.visitor;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lk.gov.ciaboc.rvm.audit.AuditService;
@@ -22,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 
@@ -49,7 +51,8 @@ public class VisitorController {
             @Size(max = 30) String mobile,
             @Email @Size(max = 255) String email,
             @Size(max = 200) String organization,
-            @Size(max = 500) String address) {}
+            @Size(max = 500) String address,
+            @Past LocalDate dateOfBirth) {}
 
     @GetMapping
     public List<Visitor> search(@RequestParam String q) {
@@ -135,6 +138,7 @@ public class VisitorController {
         v.setEmail(blank(r.email()));
         v.setOrganization(blank(r.organization()));
         v.setAddress(blank(r.address()));
+        v.setDateOfBirth(r.dateOfBirth());
     }
 
     private static String blank(String s) {
