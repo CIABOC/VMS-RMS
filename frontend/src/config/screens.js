@@ -20,6 +20,7 @@ export const SCREENS = [
   { no: '13', group: 'Insights', title: 'Management dashboard', summary: 'Aggregate indicators only', path: '/insights', roles: ['MANAGEMENT'] },
   { no: '14', group: 'System', title: 'Admin master data', summary: 'Limits, texts, role mapping', path: '/admin', roles: ['SYSTEM_ADMIN'] },
   { no: '15', group: 'System', title: 'Audit log', summary: 'Events and integrity check', path: '/audit', roles: ['SYSTEM_ADMIN', 'SECURITY_SUPERVISOR'] },
+  { no: '16', group: 'Reception', title: 'Check visitor card', summary: 'Tap an NFC visitor card: details and validity', path: '/cards/check', roles: ['RECEPTIONIST', 'GATE_OFFICER', 'SECURITY_SUPERVISOR'] },
 ];
 
 export const canSee = (screen, roles) => screen.roles.length === 0 || screen.roles.some((r) => roles.includes(r));

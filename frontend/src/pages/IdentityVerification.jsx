@@ -4,7 +4,7 @@ import { api } from '../api/client.js';
 import { useAction, useApi } from '../hooks/useApi.js';
 import { ErrorBanner, Field, Loading, PageHeader, StatusBadge } from '../components/ui.jsx';
 import IdScanner from '../components/IdScanner.jsx';
-import { ID_TYPES, fmtDateTime } from '../utils/format.js';
+import { ID_TYPES, fmtDate, fmtDateTime } from '../utils/format.js';
 
 /** Screen 04 - identity verification with the stored-scan reuse rule. */
 export default function IdentityVerification() {
@@ -73,6 +73,8 @@ export default function IdentityVerification() {
           <dl className="stack">
             <div><dt className="small muted">Name</dt><dd>{v.fullName}</dd></div>
             <div><dt className="small muted">Document</dt><dd>{ID_TYPES[v.idType]} · <b>{v.idNumber}</b></dd></div>
+            {v.dateOfBirth && <div><dt className="small muted">Date of birth</dt><dd>{fmtDate(v.dateOfBirth)}</dd></div>}
+            {v.address && <div><dt className="small muted">Address</dt><dd>{v.address}</dd></div>}
             <div><dt className="small muted">Stored scan</dt>
               <dd>{st.hasStoredScan
                 ? <>Scanned {fmtDateTime(st.scannedAt)} ({st.scanAgeDays} days ago) <button className="btn small" onClick={viewScan} disabled={busy}>View scan</button></>

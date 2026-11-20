@@ -4,6 +4,7 @@ import { api } from '../api/client.js';
 import { useAction, useApi } from '../hooks/useApi.js';
 import { Badge, Dialog, Empty, ErrorBanner, Field, Loading, PageHeader, StatusBadge } from '../components/ui.jsx';
 import HostResponseForm from '../components/HostResponseForm.jsx';
+import VisitorCardPanel from '../components/VisitorCardPanel.jsx';
 import { ID_TYPES, LANGUAGES, fmtDateTime, fmtTime } from '../utils/format.js';
 
 /** Screen 07 - visit detail: entry approval, declared items, devices and the audited history. */
@@ -87,6 +88,8 @@ export default function VisitDetail() {
           </tbody></table>
         </section>
 
+        <VisitorCardPanel key={s.status} visitId={id} visitStatus={s.status} />
+
         <section className="card">
           <h2>Declared items</h2>
           {d.items.length === 0 ? <p className="muted small">No items declared.</p> : (
@@ -156,6 +159,9 @@ export default function VisitDetail() {
         {heldDevices.length > 0
           ? <div className="alert warning">Return the {heldDevices.length} held device(s) first on the device custody screen.</div>
           : <p>Collect badge {s.badgeNo || ''} and confirm that {s.visitorName} has left.</p>}
+        <p className="small muted" style={{ marginTop: 8 }}>
+          If the visitor has an NFC visitor card, collect it with <b>Collect &amp; clear card</b> on this page, so their details are wiped from it.
+        </p>
       </Dialog>
 
       <Dialog open={dialog === 'cancel'} title="Cancel visit" onClose={() => setDialog(null)} footer={<>

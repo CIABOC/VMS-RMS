@@ -4,9 +4,10 @@ import { api, qs } from '../api/client.js';
 import { useAction, useApi } from '../hooks/useApi.js';
 import { Empty, ErrorBanner, Field, PageHeader } from '../components/ui.jsx';
 import IdScanner from '../components/IdScanner.jsx';
+import { parseNic } from '../utils/idParse.js';
 import { ID_TYPES, fmtDate, fmtTime, isoDate } from '../utils/format.js';
 
-const EMPTY_VISITOR = { fullName: '', idType: 'NIC', idNumber: '', mobile: '', email: '', organization: '', address: '' };
+const EMPTY_VISITOR = { fullName: '', idType: 'NIC', idNumber: '', mobile: '', email: '', organization: '', address: '', dateOfBirth: '' };
 
 /** Screen 03 - register a visitor: find or create the profile, then open a visit. */
 export default function RegisterVisitor() {
@@ -78,7 +79,7 @@ function FindOrCreate({ onSelected }) {
         <button className="btn" onClick={() => setCreating(true)}>New visitor</button>
       </div>
       <div style={{ marginTop: 10 }}><ErrorBanner error={scanError} /></div>
-      <IdScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={onScanned} confirmLabel="Find or register visitor" />
+      <IdScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={onScanned} confirmLabel="Continue" />
       <div style={{ marginTop: 14 }}>
         {term.length < 2 ? null : loading ? <Empty>Searching…</Empty> : !results?.length ? (
           <Empty>No matching visitor. <button className="btn small" onClick={() => setCreating(true)}>Create a new profile</button></Empty>
@@ -105,68 +106,124 @@ function FindOrCreate({ onSelected }) {
   );
 }
 
+const FILLABLE = { fullName: 'full name', idNumber: 'ID number', address: 'address' };
+
+/** Turns a camera scan result into form values (only the fields the ID can give us). */
+function fromScan(r) {
+  return {
+    ...(r.idNumber ? { idType: r.idType || 'NIC', idNumber: r.idNumber } : {}),
+    ...(r.fullName ? { fullName: r.fullName } : {}),
+    ...(r.birthDate ? { dateOfBirth: r.birthDate } : {}),
+    ...(r.address ? { address: r.address } : {}),
+  };
+}
+
+/**
+ * The visitor form. Used the same way whether the visitor was scanned (fields pre-filled from the ID)
+ * or entered by hand. The phone number is always typed in.
+ */
 function NewVisitor({ initialName, scan, onCancel, onSelected }) {
   const [f, setF] = useState(() => ({
     ...EMPTY_VISITOR,
-    fullName: scan?.fullName || (/\d/.test(initialName) ? '' : initialName),
-    ...(scan?.idNumber ? { idType: scan.idType || 'NIC', idNumber: scan.idNumber } : {}),
+    fullName: /\d/.test(initialName) ? '' : initialName,
+    ...(scan ? fromScan(scan) : {}),
   }));
   const [photo, setPhoto] = useState(scan?.photo || null);
+  const [readValues, setReadValues] = useState(scan?.tokens || []);
+  const [lastField, setLastField] = useState('fullName');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [dupes, setDupes] = useState([]);
   const { busy, error, run } = useAction();
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const scanned = !!(scan || readValues.length);
 
-  const checkDuplicates = async () => {
-    if (!f.idNumber.trim()) return;
+  const checkDuplicates = async (v = f) => {
+    if (!v.idNumber.trim()) return;
     try {
-      setDupes(await api.get(`/visitors/possible-duplicates${qs({ idNumber: f.idNumber, mobile: f.mobile, fullName: f.fullName })}`));
+      setDupes(await api.get(`/visitors/possible-duplicates${qs({ idNumber: v.idNumber, mobile: v.mobile, fullName: v.fullName })}`));
     } catch { setDupes([]); }
   };
 
+  // A scanned ID fills the form straight away, so check for duplicates without waiting for a blur.
+  useEffect(() => { if (scan) checkDuplicates(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const save = (e) => {
     e.preventDefault();
-    run(async () => onSelected(await saveScanPhoto(await api.post('/visitors', f), photo)));
+    run(async () => onSelected(await saveScanPhoto(await api.post('/visitors', { ...f, dateOfBirth: f.dateOfBirth || null }), photo)));
   };
 
   const onScanned = (r) => {
     setScannerOpen(false);
-    setF((cur) => ({
-      ...cur,
-      ...(r.idNumber ? { idType: r.idType || cur.idType, idNumber: r.idNumber } : {}),
-      ...(r.fullName ? { fullName: r.fullName } : {}),
-    }));
+    const next = { ...f, ...fromScan(r) };
+    setF(next);
+    setReadValues(r.tokens || []);
     if (r.photo) setPhoto(r.photo);
+    checkDuplicates(next);
   };
+
+  const pick = (value) => setF({ ...f, [lastField]: lastField === 'idNumber' ? value.replace(/\s+/g, '').toUpperCase() : value });
+  const focus = (k) => () => setLastField(k);
+  const nic = f.idType === 'NIC' ? parseNic(f.idNumber) : null;
   const fe = error?.fieldErrors || {};
 
   return (
     <>
-    <IdScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={onScanned} confirmLabel="Fill the form" />
-    <form className="card" onSubmit={save} aria-labelledby="new-h">
+    <IdScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onResult={onScanned} confirmLabel="Continue to form" />
+    <form className="card" onSubmit={save} aria-labelledby="new-h" autoComplete="off">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 id="new-h">1. New visitor profile</h2>
-        <button type="button" className="btn small" onClick={() => setScannerOpen(true)}>Scan ID with camera</button>
+        <h2 id="new-h">1. Visitor details</h2>
+        <button type="button" className="btn small" onClick={() => setScannerOpen(true)}>{scanned ? 'Scan again' : 'Scan ID with camera'}</button>
       </div>
-      {scan && (
+      {scanned && (
         <div className="alert info" style={{ marginTop: 8 }}>
-          No existing profile uses {scan.idNumber ? <b>{scan.idNumber}</b> : 'this document'}. Details read from the ID are filled in below - check them against the card.
+          Details were filled in from the ID. Check them against the card, then enter the phone number.
         </div>
       )}
       {photo && <div className="alert good" style={{ marginTop: 8 }}>A camera photo of the ID will be saved as the identity scan.</div>}
       <ErrorBanner error={error} />
-      <div className="form-grid" style={{ marginTop: 8 }}>
-        <Field label="Full name" error={fe.fullName}><input required value={f.fullName} onChange={set('fullName')} onBlur={checkDuplicates} /></Field>
+
+      <h3 className="form-section">From the identity document</h3>
+      <div className="form-grid">
+        <Field label="Full name" error={fe.fullName}>
+          <input required value={f.fullName} onChange={set('fullName')} autoComplete="off" onFocus={focus('fullName')} onBlur={() => checkDuplicates()} />
+        </Field>
         <Field label="Identity document" error={fe.idType}>
           <select value={f.idType} onChange={set('idType')}>
             {Object.entries(ID_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </Field>
-        <Field label="Document number" error={fe.idNumber}><input required value={f.idNumber} onChange={set('idNumber')} onBlur={checkDuplicates} /></Field>
-        <Field label="Mobile" error={fe.mobile}><input type="tel" value={f.mobile} onChange={set('mobile')} onBlur={checkDuplicates} /></Field>
-        <Field label="E-mail" error={fe.email}><input type="email" value={f.email} onChange={set('email')} /></Field>
-        <Field label="Organisation" error={fe.organization}><input value={f.organization} onChange={set('organization')} /></Field>
-        <Field label="Address" error={fe.address}><input value={f.address} onChange={set('address')} /></Field>
+        <Field label="ID number" error={fe.idNumber}>
+          <input required value={f.idNumber} onChange={set('idNumber')} autoComplete="off" name="visitor-id-no" onFocus={focus('idNumber')} onBlur={() => checkDuplicates()} />
+        </Field>
+        <Field label="Date of birth" error={fe.dateOfBirth}
+          hint={nic && nic.birthDate !== f.dateOfBirth
+            ? <>The NIC number gives {fmtDate(nic.birthDate)}. <button type="button" className="btn small" onClick={() => setF({ ...f, dateOfBirth: nic.birthDate })}>Use it</button></>
+            : undefined}>
+          <input type="date" value={f.dateOfBirth} max={isoDate()} onChange={set('dateOfBirth')} />
+        </Field>
+        <Field label="Address" error={fe.address}>
+          <input value={f.address} onChange={set('address')} autoComplete="off" onFocus={focus('address')} maxLength={500} />
+        </Field>
+      </div>
+
+      {readValues.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div className="small muted" style={{ marginBottom: 6 }}>
+            Everything read from the ID. If a field is wrong, click into it, then click the right value here to copy it in (now: {FILLABLE[lastField]}).
+          </div>
+          <div className="row" style={{ gap: 6 }}>
+            {readValues.map((t) => <button key={t} type="button" className="btn small" onClick={() => pick(t)}>{t}</button>)}
+          </div>
+        </div>
+      )}
+
+      <h3 className="form-section">Contact (enter manually)</h3>
+      <div className="form-grid">
+        <Field label="Phone number" error={fe.mobile}>
+          <input type="tel" inputMode="tel" value={f.mobile} onChange={set('mobile')} onBlur={() => checkDuplicates()} autoFocus={scanned} />
+        </Field>
+        <Field label="E-mail" hint="Optional" error={fe.email}><input type="email" value={f.email} onChange={set('email')} /></Field>
+        <Field label="Organisation" hint="Optional" error={fe.organization}><input value={f.organization} onChange={set('organization')} /></Field>
       </div>
 
       {dupes.length > 0 && (
@@ -224,6 +281,7 @@ function VisitForm({ visitor, onBack, onCreated }) {
       <h2 id="visit-h">2. Visit details</h2>
       <p style={{ marginBottom: 12 }}>
         <b>{visitor.fullName}</b> <span className="muted">· {ID_TYPES[visitor.idType]} {visitor.idNumber}
+        {visitor.dateOfBirth ? ` · born ${fmtDate(visitor.dateOfBirth)}` : ''}
         {visitor.idScanAt ? ` · ID scanned ${fmtDate(visitor.idScanAt)}` : ' · no stored ID scan'}</span>
       </p>
       <ErrorBanner error={error} />

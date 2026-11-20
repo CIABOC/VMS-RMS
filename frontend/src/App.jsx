@@ -18,6 +18,7 @@ import DeviceCustody from './pages/DeviceCustody.jsx';
 import ManagementDashboard from './pages/ManagementDashboard.jsx';
 import AdminMasterData from './pages/AdminMasterData.jsx';
 import AuditLog from './pages/AuditLog.jsx';
+import CardCheck from './pages/CardCheck.jsx';
 import NotFound from './pages/NotFound.jsx';
 
 const R = ['RECEPTIONIST'];
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="insights" element={<RequireAuth roles={['MANAGEMENT']}><ManagementDashboard /></RequireAuth>} />
         <Route path="admin" element={<RequireAuth roles={['SYSTEM_ADMIN']}><AdminMasterData /></RequireAuth>} />
         <Route path="audit" element={<RequireAuth roles={['SYSTEM_ADMIN', 'SECURITY_SUPERVISOR']}><AuditLog /></RequireAuth>} />
+        <Route path="cards/check" element={<RequireAuth roles={[...R, ...GATE]}><CardCheck /></RequireAuth>} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

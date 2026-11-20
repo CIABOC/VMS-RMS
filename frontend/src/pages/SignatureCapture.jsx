@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAction, useApi } from '../hooks/useApi.js';
 import SignaturePad from '../components/SignaturePad.jsx';
+import VisitorCardPanel from '../components/VisitorCardPanel.jsx';
+import { useAuth } from '../auth/AuthContext.jsx';
 import { ErrorBanner, Loading, PageHeader } from '../components/ui.jsx';
 import { LANGUAGES } from '../utils/format.js';
 
@@ -15,6 +17,7 @@ export default function SignatureCapture() {
   const [blank, setBlank] = useState(true);
   const [result, setResult] = useState(null);
   const pad = useRef(null);
+  const { hasRole } = useAuth();
   const { busy, error, run } = useAction();
 
   if (loadError) return <ErrorBanner error={loadError} />;
@@ -36,6 +39,9 @@ export default function SignatureCapture() {
             <Link className="btn primary" to="/queue">Live queue</Link>
             <Link className="btn" to="/visits/new">Register next visitor</Link>
           </div>
+        </section>
+        <section className="card" style={{ marginTop: 16 }}>
+          <VisitorCardPanel visitId={id} visitStatus={status} compact />
         </section>
       </>
     );
@@ -61,7 +67,19 @@ export default function SignatureCapture() {
       <PageHeader no="05" title="Signature capture">
         Turn the screen to the visitor. They read the acknowledgement in their language and sign below.
       </PageHeader>
-      <ErrorBanner error={error || ackError} />
+      <ErrorBanner error={error || (ackError?.status === 404 ? null : ackError)} />
+      {ackError?.status === 404 && (
+        <div className="alert warning" role="alert">
+          <div>
+            <b>No acknowledgement text has been published yet, so the visitor cannot sign.</b>
+            <div style={{ marginTop: 4 }}>
+              {hasRole('SYSTEM_ADMIN')
+                ? <>Publish one in <Link to="/admin">Admin master data → Acknowledgement texts</Link> (add a version, then activate it), then reload this page.</>
+                : <>Ask a System Administrator to publish one on screen 14 (Admin master data → Acknowledgement texts), then reload this page. The visit stays here until then.</>}
+            </div>
+          </div>
+        </div>
+      )}
       {ack && (
         <section className="card">
           <div className="tabs" role="tablist" aria-label="Language">

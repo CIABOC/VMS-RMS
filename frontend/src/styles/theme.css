@@ -284,6 +284,10 @@ dialog.wide { max-width: min(820px, calc(100vw - 32px)); max-height: calc(100vh 
 .scanner-frame { position: absolute; inset: 14% 10%; border: 3px dashed rgba(240, 221, 164, .85); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(10, 21, 48, .35); transition: border-color .2s; pointer-events: none; }
 .scanner-frame.found { border-style: solid; border-color: #3ccf7a; }
 .scanner-status { position: absolute; left: 12px; bottom: 10px; padding: 4px 10px; border-radius: 999px; background: rgba(10, 21, 48, .75); color: #fff; font-size: 12.5px; font-weight: 600; }
+.form-section { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; }
+.scan-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 16px; margin-top: 14px; padding: 12px 14px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; }
+.scan-summary dt { font-size: 12px; color: var(--muted); }
+.scan-summary dd { font-weight: 600; overflow-wrap: anywhere; }
 .scanner-photo { max-width: 100%; max-height: 220px; border: 1px solid var(--line); border-radius: 8px; display: block; }
 
 /* ---------- two-column work layouts that stack on small screens */

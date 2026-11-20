@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialog, Field } from './ui.jsx';
-import { ID_TYPES, fmtDate } from '../utils/format.js';
-import { parseIdText, parseNic } from '../utils/idParse.js';
+import { fmtDate } from '../utils/format.js';
+import { parseIdText } from '../utils/idParse.js';
 
 const SCAN_EVERY_MS = 250;
 const NATIVE_FORMATS = ['pdf417', 'qr_code', 'code_128', 'code_39', 'data_matrix', 'aztec'];
@@ -32,8 +32,6 @@ function ScannerPanel({ onClose, onResult, photoRequired, confirmLabel }) {
   const [ready, setReady] = useState(false);
   const [scanning, setScanning] = useState(true);
   const [details, setDetails] = useState(null);
-  const [form, setForm] = useState({ idType: 'NIC', idNumber: '', fullName: '' });
-  const [lastField, setLastField] = useState('fullName');
   const [photo, setPhoto] = useState(null); // { file, url }
 
   // ---- camera start / stop
@@ -89,14 +87,8 @@ function ScannerPanel({ onClose, onResult, photoRequired, confirmLabel }) {
 
   // ---- barcode decoding loop
   const handleDecoded = useCallback((text) => {
-    const parsed = parseIdText(text);
-    setDetails(parsed);
+    setDetails(parseIdText(text));
     setScanning(false);
-    setForm((f) => ({
-      idType: parsed.idType || f.idType,
-      idNumber: parsed.idNumber || f.idNumber,
-      fullName: parsed.suggestedName || f.fullName,
-    }));
   }, []);
 
   useEffect(() => {
@@ -171,18 +163,17 @@ function ScannerPanel({ onClose, onResult, photoRequired, confirmLabel }) {
   };
 
   const rescan = () => { setDetails(null); setScanning(true); };
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-  const pick = (value) => setForm({ ...form, [lastField]: lastField === 'idNumber' ? value.replace(/\s+/g, '').toUpperCase() : value });
-
-  const nic = form.idType === 'NIC' ? parseNic(form.idNumber) : null;
-  const canConfirm = photoRequired ? !!photo : !!(form.idNumber.trim() || photo);
+  const canConfirm = photoRequired ? !!photo : !!(details || photo);
 
   const confirm = () => onResult({
-    idType: form.idType,
-    idNumber: form.idNumber.trim().toUpperCase(),
-    fullName: form.fullName.trim(),
-    nic,
+    idType: details?.idType || '',
+    idNumber: details?.idNumber || '',
+    fullName: details?.suggestedName || '',
+    birthDate: details?.birthDate || '',
+    address: details?.address || '',
+    nic: details?.nic || null,
     raw: details?.raw || '',
+    tokens: details?.tokens || [],
     photo: photo?.file || null,
   });
 
@@ -224,39 +215,18 @@ function ScannerPanel({ onClose, onResult, photoRequired, confirmLabel }) {
         </div>
       )}
 
-      {!photoRequired && (
-        <div className="form-grid" style={{ marginTop: 14 }}>
-          <Field label="Identity document">
-            <select value={form.idType} onChange={set('idType')}>
-              {Object.entries(ID_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </Field>
-          <Field label="Document number">
-            <input value={form.idNumber} onChange={set('idNumber')} onFocus={() => setLastField('idNumber')} />
-          </Field>
-          <Field label="Full name" hint={details?.suggestedName ? 'Suggested from the barcode - check it against the card' : undefined}>
-            <input value={form.fullName} onChange={set('fullName')} onFocus={() => setLastField('fullName')} />
-          </Field>
-          {nic && (
-            <div className="field">
-              <span>From the NIC number</span>
-              <div style={{ paddingTop: 6 }}>Born {fmtDate(nic.birthDate)} · {nic.gender}</div>
-            </div>
-          )}
-        </div>
+      {!photoRequired && details && (
+        <dl className="scan-summary" aria-label="Details read from the ID">
+          <div><dt>Name</dt><dd>{details.suggestedName || '—'}</dd></div>
+          <div><dt>ID number</dt><dd>{details.idNumber || '—'}</dd></div>
+          <div><dt>Date of birth</dt><dd>{details.birthDate ? fmtDate(details.birthDate) : '—'}</dd></div>
+          <div><dt>Address</dt><dd>{details.address || '—'}</dd></div>
+        </dl>
       )}
-
-      {!photoRequired && details && details.tokens.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <div className="small muted" style={{ marginBottom: 6 }}>
-            Values read from the barcode. Click one to copy it into the field you selected last ({lastField === 'idNumber' ? 'document number' : 'full name'}).
-          </div>
-          <div className="row" style={{ gap: 6 }}>
-            {details.tokens.map((t) => (
-              <button key={t} type="button" className="btn small" onClick={() => pick(t)}>{t}</button>
-            ))}
-          </div>
-        </div>
+      {!photoRequired && (
+        <p className="small muted" style={{ marginTop: 8 }}>
+          Next, the visitor form opens with these details filled in. You can correct them and add the phone number there.
+        </p>
       )}
 
       {photoRequired && details && (
