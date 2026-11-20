@@ -142,10 +142,11 @@ Permissions are enforced in two places: the frontend hides screens a user can't 
 The receptionist can scan a visitor's identity card with the PC's camera instead of typing:
 
 - **Screen 03 - "Scan ID with camera"** reads the barcode on the back of the card (PDF417, QR, Code 128/39,
-  Data Matrix, Aztec). A Sri Lankan NIC number found in it opens the matching visitor profile, or pre-fills
-  a new profile. The date of birth and gender encoded in the NIC number are shown for checking. Other decoded
-  values are shown as buttons that copy into the name or number field. A photo of the card can be captured
-  and is stored as the identity scan.
+  Data Matrix, Aztec). A Sri Lankan NIC number found in it opens the matching visitor profile. Otherwise the
+  visitor form opens with **name, ID number, date of birth and address** filled in from the ID (the date of birth
+  falls back to the one encoded in the NIC number). The **phone number is always entered manually**. All decoded
+  values are shown as buttons that copy into a field if a guess is wrong. A photo of the card can be captured
+  and is stored as the identity scan. "New visitor" (typed by hand) uses the same form.
 - **Screen 04 - "Use camera"** captures the new identity scan; if a barcode is read, its number is compared
   with the profile.
 
@@ -153,6 +154,32 @@ Nothing is saved without the receptionist confirming it. Decoding runs entirely 
 `BarcodeDetector` where available, otherwise the bundled `@zxing` decoder) - no image leaves the site except the
 confirmed scan upload. **Browsers only allow the camera over HTTPS or on `localhost`**, so reception PCs must open
 the system through HTTPS.
+
+### Temporary visitor NFC cards (screens 05, 07 and 16)
+
+After the visitor is verified and has signed, reception can write the visitor's details to a temporary NFC card
+that the visitor carries during the visit.
+
+- **Issue:** on the "Signed" screen (05) or the visit detail (07), click **Write visitor card** and place a blank card
+  on the reader. The card gets name, ID type and number, date of birth, address, mobile, organisation, category,
+  host, purpose, visit date, token and a "valid until" time (end of the visit day). The server **signs** the data
+  (HMAC, `APP_CARD_SECRET`), so an edited or home-made card fails the check. The card's UID is recorded
+  against the visit (`visitor_card` table) and the event is audited.
+- **Check:** screen 16 **Check visitor card** (reception, gate, security) reads a card and shows its details plus a
+  verdict: signature valid, registered as issued, not expired, visit not closed.
+- **Return:** at check-out, **Collect & clear card** wipes the card and marks it returned, ready for the next visitor.
+  **Not returned** records a lost card; it then fails every check.
+- **Cards:** NTAG215 / NTAG216 (written as an NDEF record of type `application/vnd.ciaboc.visitor`) and MIFARE Classic
+  1K (sectors 1-15, default keys) are detected automatically. NTAG213 is too small. If a card is small,
+  optional details (purpose, organisation, mobile, address, ...) are left off and reception is told which.
+- **Hardware:** a USB PC/SC NFC reader (ACR122U, ACR1252U or similar) on the reception PC. Browsers cannot use
+  a USB reader, so the reception PC runs the small **NFC bridge** in [`nfc-bridge/`](nfc-bridge/) (one Java file,
+  no dependencies; JDK 17+). Start `nfc-bridge\start-nfc-bridge.cmd` (or put a shortcut in `shell:startup`).
+  It listens only on `127.0.0.1:47800` and accepts calls only from the origins in `NFC_BRIDGE_ALLOWED_ORIGINS`
+  - set it to the address reception opens, e.g. `https://rvm.ciaboc.gov.lk`. If the bridge is not on the default
+  port, build the frontend with `VITE_NFC_BRIDGE_URL`.
+- **Data protection:** the card carries personal data in readable form (anyone with an NFC phone can read it).
+  Always collect and clear cards at check-out; follow up cards recorded as not returned.
 
 ### Business rules
 
@@ -265,6 +292,7 @@ These are set in `.env` and passed to the backend.
 | `APP_SSO_LOGIN_URL` | SSO start URL for the sign-in button |
 | `APP_BOOTSTRAP_ADMIN_EMAIL`, `APP_BOOTSTRAP_ADMIN_NAME` | First administrator, created only when there are no staff |
 | `APP_TIME_ZONE` | Business day boundary (default `Asia/Colombo`) |
+| `APP_CARD_SECRET` | Signs visitor NFC card data (32+ random characters, keep stable). Required with `APP_AUTH_MODE=sso`; in dev a temporary key is used |
 | `SESSION_COOKIE_SECURE` | `true` behind HTTPS |
 
 ### Business settings
